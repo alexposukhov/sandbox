@@ -1,1 +1,1 @@
-# sandbox
+# SandBox for Linux kernel drivers learning
