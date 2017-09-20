@@ -23,6 +23,7 @@ while [ ! -z "$1"  ] ; do
                 #scp $MODNAME debian@192.168.7.2:/home/debian/
                 scp $MODNAME bbb:~/
                 scp $BUILD_KERNEL/arch/arm/boot/dts/am335x-boneblack.dtb bbb:~/
+                cp $BUILD_KERNEL/arch/arm/boot/dts/am335x-bone-common.dtsi  ./
                 ;;
             --kconfig)
                 echo "configure kernel"
