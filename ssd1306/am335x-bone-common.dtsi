@@ -88,6 +88,14 @@
 		>;
 	};
 
+
+	i2c1_pins: pinmux_i2c1_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x958, PIN_INPUT_PULLUP | MUX_MODE2)	/* i2c1_scl.i2c1_scl */
+			AM33XX_IOPAD(0x95c, PIN_INPUT_PULLUP | MUX_MODE2)	/* i2c1_sda.i2c1_sda */
+		>;
+	};
+
 	i2c2_pins: pinmux_i2c2_pins {
 		pinctrl-single,pins = <
 			AM33XX_IOPAD(0x978, PIN_INPUT_PULLUP | MUX_MODE3)	/* uart1_ctsn.i2c2_sda */
@@ -232,12 +240,14 @@
 
 };
 
-&i2c2 {
+
+&i2c1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
+	pinctrl-0 = <&i2c1_pins>;
 
 	status = "okay";
 	clock-frequency = <400000>;
+
 
 	lcd_ssd1306: lcd_ssd1306@3c {
 		compatible = "DAndy,lcd_ssd1306";
@@ -245,6 +255,16 @@
 		status = "okay";
 
 	};
+};
+
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+
+	status = "okay";
+	clock-frequency = <400000>;
+
 };
 
 
