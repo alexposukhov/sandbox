@@ -43,6 +43,8 @@ struct lcd_data {
 	struct gpio_desc *DC_gpiod;
 	struct gpio_desc *CS_gpiod;
 
+	struct work_struct display_update_ws;
+
 	LCD_Orientation orientation;
 
 	//u16 *lcd_vmem;
@@ -86,21 +88,6 @@ static struct fb_var_screeninfo ili9341fb_var = {
 		.green          = { 5, 6, 0 },
 		.blue           = { 0, 5, 0 },
 		.nonstd         = 0,
-/*
-	.bits_per_pixel = 16,
-
-	.red.offset = 11,
-	.red.length = 5,
-
-	.green.offset = 5,   
-	.green.length = 6,
-
-	.blue.offset = 0,   
-	.blue.length = 5,
-
-	.transp.offset = 0,  
-	.transp.length = 0,
-	*/
 };
 
 
@@ -183,20 +170,6 @@ static void SPI_Send_two_bytes(u8 byte1, u8 byte2)
 
 
 
-/*
-static void SPI_Send_buff(u16 *buff, u16 len)
-{
-	int ret;
-
-	struct spi_device *spi = lcd->spi_device;
-
-	ret = spi_write(spi, buff, len);
-	if(ret < 0)
-		dev_err(dev, "failed to write to SPI\n");
-}
-*/
-
-
 static void SPI_Send_buff(u8 *buff, u16 len)
 {
 	int ret;
@@ -235,19 +208,11 @@ static void LCD_SendDataW(u8 data1, u8 data2) {
 static void LCD_SetCursorPosition(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
 
 	LCD_SendCommand(ILI9341_COLUMN_ADDR);
-	//LCD_SendData(x1 >> 8);
-	//LCD_SendData(x1 & 0xFF);
 	LCD_SendDataW(x1 >> 8, x1 & 0xFF);
-	//LCD_SendData(x2 >> 8);
-	//LCD_SendData(x2 & 0xFF);
 	LCD_SendDataW(x2 >> 8, x2 & 0xFF);
 
 	LCD_SendCommand(ILI9341_PAGE_ADDR);
-	//LCD_SendData(y1 >> 8);
-	//LCD_SendData(y1 & 0xFF);
 	LCD_SendDataW(y1 >> 8, y1 & 0xFF);
-	//LCD_SendData(y2 >> 8);
-	//LCD_SendData(y2 & 0xFF);
 	LCD_SendDataW(y2 >> 8, y2 & 0xFF);
 }
 
@@ -398,10 +363,6 @@ static void LCD_Init(void){
 
 
 
-
-
-
-
 static void LCD_Fill(uint16_t color) {
 	unsigned int n, i, j;
 	i = color >> 8;
@@ -420,61 +381,40 @@ static void LCD_Fill(uint16_t color) {
 
 
 
-//static u8 buff[(LCD_WIDTH * 2) + 16] = {0};
-
 static void ili9341_UpdateScreen(struct lcd_data *lcd){
 	unsigned int n;
-	//u8 i, j, k;
 	u16 *pcolor = 0;
-	//u16 color = 0;
 	u8 buff[LCD_WIDTH * 2] = {0};
 	u8 *psrc = 0;
-	//return;	// !!!!!!!!!!!!!!!!!!!!!!
 
-	LCD_SetCursorPosition(0, 0, lcd->width - 1, lcd->height - 1);
+	//LCD_SetCursorPosition(0, 0, lcd->width - 1, lcd->height - 1);
 
 	LCD_SendCommand(ILI9341_GRAM);
 
 	TFT_DC_SET;
 	TFT_CS_RESET;
 
-/*
-
-	for (n = 0; n < LCD_PIXEL_COUNT; n++) {
-		color = lcd_vmem[n];//ili9341_Buffer[i];
-		//i = (color >> 8) & 0xFF;
-		i = (color & 0xFF00) >> 8;
-		j = color & 0xFF;
-		//SPI_Send_byte(i);
-		//SPI_Send_byte(j);
-		SPI_Send_two_bytes(i, j);
-	}
-
-*/
-
-	pcolor = lcd_vmem;//ili9341_Buffer[i];
+	pcolor = lcd_vmem;
 	psrc = (u8 *)lcd_vmem;
 	for (n = 0; n < LCD_HEIGHT; n++) {
-/*
-
-		for (k = 0; k < LCD_WIDTH*2; k+=2) {
-		//memcpy(buff, pcolor, LCD_WIDTH *2);
-
-			i = (*pcolor & 0xFF00) >> 8;
-			j = *pcolor & 0xFF;
-			buff[k] 	= i;
-			buff[k+1] 	= j;
-			pcolor++;
-		}
-*/
 		memcpy(buff, psrc, LCD_WIDTH *2);
 		psrc += LCD_WIDTH*2;
-		SPI_Send_buff(buff, LCD_WIDTH *2);//sizeof(buff));
-		//pcolor += LCD_WIDTH;
+		SPI_Send_buff(buff, LCD_WIDTH *2);
 	}
 
 
 	TFT_CS_SET;
+}
+
+
+
+
+static void update_display_work(struct work_struct *work)
+{
+	struct lcd_data *lcd =
+		container_of(work, struct lcd_data, display_update_ws);
+	//ssd1307fb_update_display(lcd);
+	ili9341_UpdateScreen(lcd);
 }
 
 
@@ -669,14 +609,14 @@ static int ili9341fb_setcolreg (u_int regno,
 static ssize_t ili9341fb_write(struct fb_info *info, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
-    struct lcd_data *lcd = info->par;
+	struct lcd_data *lcd = info->par;
 	unsigned long total_size;
 	unsigned long p = *ppos;
 	u8 __iomem *dst;
 
 	total_size = info->fix.smem_len;
 
-	//dev_info(dev, "ssd1307fb_write\n");
+	//dev_info(dev, "%s\n", __FUNCTION__);
 
 	if (p > total_size)
 		return -EINVAL;
@@ -692,7 +632,8 @@ static ssize_t ili9341fb_write(struct fb_info *info, const char __user *buf,
 	if (copy_from_user(dst, buf, count))
 		return -EFAULT;
 
-	ili9341_UpdateScreen(lcd);
+	//ili9341_UpdateScreen(lcd);
+	schedule_work(&lcd->display_update_ws);
 
 	*ppos += count;
 
@@ -702,47 +643,33 @@ static ssize_t ili9341fb_write(struct fb_info *info, const char __user *buf,
 
 static int ili9341fb_blank(int blank_mode, struct fb_info *info)
 {
-	/*
-    struct lcd_data *lcd = info->par;
-    if (blank_mode != FB_BLANK_UNBLANK)
-    	return ssd1306_OFF(lcd);
-    else
-    	return ssd1306_ON(lcd);
-   */
 	return 0;
 }
 
 static void ili9341fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-    struct lcd_data *lcd = info->par;
+	struct lcd_data *lcd = info->par;
 	sys_fillrect(info, rect);
-	ili9341_UpdateScreen(lcd);
+	schedule_work(&lcd->display_update_ws);
 
-	//dev_info(dev, "ssd1307fb_fillrect\n");
+	//dev_info(dev, "%s\n", __FUNCTION__);
 }
 
 static void ili9341fb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
-    struct lcd_data *lcd = info->par;
+	struct lcd_data *lcd = info->par;
 	sys_copyarea(info, area);
-	ili9341_UpdateScreen(lcd);
+	schedule_work(&lcd->display_update_ws);
 
-	//dev_info(dev, "ssd1307fb_copyarea\n");
+	//dev_info(dev, "%s\n", __FUNCTION__);
 }
 
 static void ili9341fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-    //struct lcd_data *lcd = info->par;
-	//dev_info(dev, "ssd1307fb_imageblit\n");
-
-
-	//dev_info(dev, "lcd->width = %d, lcd->height = %d\n", lcd->width, lcd->height);
-	//dev_info(dev, "lcd = %d\n"); lcd;
-
 	sys_imageblit(info, image);
-	ili9341_UpdateScreen(lcd);
+	schedule_work(&lcd->display_update_ws);
 
-	//dev_info(dev, "ssd1307fb_imageblit\n");
+	//dev_info(dev, "%s\n", __FUNCTION__);
 }
 
 static struct fb_ops ili9341fb_ops = {
@@ -757,7 +684,6 @@ static struct fb_ops ili9341fb_ops = {
 };
 
 
-//static int lcd_init(struct platform_device *pdev)
 static int ili9341_probe(struct spi_device *spi)
 {
 	const struct of_device_id *match;
@@ -775,26 +701,12 @@ static int ili9341_probe(struct spi_device *spi)
 	}
 
 
-/*
-
-	lcd = devm_kzalloc(&spi->dev, sizeof(struct lcd_data), GFP_KERNEL);
-	if (!lcd){
-		dev_err(dev, "failed to alloc memory\n");
-		return -ENOMEM;
-	}
-*/
-	  
-
 	spi->mode = SPI_MODE_0;
 	spi->bits_per_word = 8;
 	spi_setup(spi);
 
 
-
 	info = framebuffer_alloc(sizeof(struct lcd_data), &spi->dev);
-//	info = devm_kzalloc(dev, sizeof(struct fb_info), GFP_KERNEL);
-//////	info = framebuffer_alloc(sizeof(struct ssd1306_data), &drv_client->dev);
-
 
 	if (!info){
 		dev_err(dev, "framebuffer_alloc has failed\n");
@@ -815,7 +727,7 @@ static int ili9341_probe(struct spi_device *spi)
 
 	lcd_vmem = devm_kzalloc(dev, vmem_size, GFP_KERNEL);
 
-    if (!lcd_vmem) {
+	if (!lcd_vmem) {
 		dev_err(dev, "Couldn't allocate graphical memory.\n");
 		return -ENOMEM;
 	}
@@ -859,13 +771,13 @@ static int ili9341_probe(struct spi_device *spi)
 
 
 	LCD_Init();
+	INIT_WORK(&lcd->display_update_ws, update_display_work);
 
 	spi_set_drvdata(spi, lcd);
 
 	make_sysfs_entry(spi);
 
 
-/*
 
 	ret = register_framebuffer(info);
 	if (ret) {
@@ -873,8 +785,6 @@ static int ili9341_probe(struct spi_device *spi)
 		return ret;
 		//goto panel_init_error;
 	}
-
-*/
 
 
 	dev_info(dev, "module initialized\n");
@@ -891,6 +801,7 @@ static int ili9341_remove(struct spi_device *spi)
 
 	sys_class = lcd->sys_class;
 
+	cancel_work_sync(&lcd->display_update_ws);
 
 	unregister_framebuffer(info);
 

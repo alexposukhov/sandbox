@@ -295,7 +295,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_ctrl_pinmux>;
 
-		spi-max-frequency = <12000000>;
+		spi-max-frequency = <18000000>;
 		rotate = <0>;
 		bgr;
 		fps = <5>;
