@@ -301,8 +301,8 @@ static void LCD_Init(void){
 	LCD_SendData(0x86);
 
 
-	LCD_Rotate(LCD_Landscape);
-	//LCD_Rotate(LCD_Portrait);
+	//LCD_Rotate(LCD_Landscape);
+	LCD_Rotate(LCD_Portrait);
 
 	LCD_SendCommand(ILI9341_PIXEL_FORMAT);
 	LCD_SendData(0x55);
@@ -362,7 +362,7 @@ static void LCD_Init(void){
 
 
 
-
+#if 0
 static void LCD_Fill(uint16_t color) {
 	unsigned int n, i, j;
 	i = color >> 8;
@@ -378,7 +378,7 @@ static void LCD_Fill(uint16_t color) {
 		SPI_Send_two_bytes(i, j);
 	}
 }
-
+#endif
 
 
 static void ili9341_UpdateScreen(struct lcd_data *lcd){
@@ -444,7 +444,6 @@ static ssize_t sys_lcd_paint(struct class *class,
 	struct class_attribute *attr, char *buf)
 {
 	ssize_t i = 0;
-	long len = 0;
 	long indx = 0, dx = 0;
 	u16 *pmem = 0;
 	u16 color = 0xF800;
