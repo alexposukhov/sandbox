@@ -327,8 +327,8 @@ int fb_init(char *device) {
 	}
  
 
-	lcd.width 		= fb_var.yres;
-	lcd.height 		= fb_var.xres;
+	lcd.width 		= fb_var.xres;
+	lcd.height 		= fb_var.yres;
 	lcd.screensize 	= fb_var.xres * fb_var.yres * (fb_var.bits_per_pixel / 8);
 	lcd.fbp 		= fb_mem;
 
@@ -377,7 +377,8 @@ int main(int argc, char **argv)
 
 	center.Y 	= lcd.height / 2;
 	center.X 	= lcd.width / 2;
-	radius 		= (lcd.height / 2) -30;
+	radius 		= (lcd.height < lcd.width) ? lcd.height : lcd.width;
+	radius		= radius/2 - 30;
 	Graphic_drawCircle(center, radius);
 
 	printf("center.X = %d; center.Y = %d; radius = %d\n", center.X, center.Y, radius);

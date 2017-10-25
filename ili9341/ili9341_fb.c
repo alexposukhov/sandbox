@@ -732,7 +732,6 @@ static int ili9341_probe(struct spi_device *spi)
 	}
 
 
-
 	info->fbops     		= &ili9341fb_ops;
 	info->fix       		= ili9341fb_fix;
 	info->fix.line_length 	= lcd->width * 2;
@@ -768,9 +767,13 @@ static int ili9341_probe(struct spi_device *spi)
 	}
 
 
-
 	LCD_Init();
 	INIT_WORK(&lcd->display_update_ws, update_display_work);
+
+	info->var.xres 			= lcd->width;
+	info->var.xres_virtual 	= lcd->width;
+	info->var.yres 			= lcd->height;
+	info->var.yres_virtual 	= lcd->height;
 
 	spi_set_drvdata(spi, lcd);
 
