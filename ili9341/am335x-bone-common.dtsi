@@ -60,6 +60,50 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+
+
+	my_gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&test_keys_pins>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce_interval = <50>;
+			linux,code = <105>;
+			label = "left";
+			gpios = <&gpio2 8 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+		button@2 {
+			debounce_interval = <50>;
+			linux,code = <106>;
+			label = "right";
+			gpios = <&gpio2 9 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+		button@3 {
+			debounce_interval = <50>;
+			linux,code = <103>;
+			label = "up";
+			gpios = <&gpio2 6 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+		button@4 {
+			debounce_interval = <50>;
+			linux,code = <108>;
+			label = "down";
+			gpios = <&gpio2 7 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+	};	
 };
 
 &am33xx_pinmux {
@@ -194,7 +238,18 @@
 			AM33XX_IOPAD(0x964, PIN_OUTPUT_PULLUP | MUX_MODE7) 		/* P9.42 gpio0_7  OUTPUT_PULLUP | MODE7 */
 			AM33XX_IOPAD(0x9a4, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* P9.27 gpio3_19 OUTPUT_PULDOWN| MODE7 */
 		>;
-	};		
+	};
+
+
+	test_keys_pins: pinmux_test_keys_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x8a8, PIN_OUTPUT_PULLUP | MUX_MODE7) 		/* P8.43 gpio2_8 OUTPUT_PULLUP | MODE7 */
+			AM33XX_IOPAD(0x8ac, PIN_OUTPUT_PULLUP | MUX_MODE7) 		/* P8.44 gpio2_9  OUTPUT_PULLUP | MODE7 */
+			AM33XX_IOPAD(0x8a0, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* P8.45 gpio2_6 OUTPUT_PULDOWN| MODE7 */
+			AM33XX_IOPAD(0x8a4, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* P8.46 gpio2_7 OUTPUT_PULDOWN| MODE7 */
+		>;
+	};
+
 };
 
 &uart0 {
@@ -295,7 +350,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_ctrl_pinmux>;
 
-		spi-max-frequency = <18000000>;
+		spi-max-frequency = <24000000>;
 		rotate = <0>;
 		bgr;
 		fps = <5>;
@@ -309,6 +364,7 @@
 		debug = <7>;
 	};
 };
+
 
 
 

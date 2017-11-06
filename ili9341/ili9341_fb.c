@@ -84,6 +84,7 @@ static struct fb_var_screeninfo ili9341fb_var = {
 		.height         = -1,
 		.width          = -1,
 		.bits_per_pixel = BPP,
+		
 		.red            = { 11, 5, 0 },
 		.green          = { 5, 6, 0 },
 		.blue           = { 0, 5, 0 },
@@ -387,7 +388,7 @@ static void ili9341_UpdateScreen(struct lcd_data *lcd){
 	u8 buff[LCD_WIDTH * 2] = {0};
 	u8 *psrc = 0;
 
-	//LCD_SetCursorPosition(0, 0, lcd->width - 1, lcd->height - 1);
+	LCD_SetCursorPosition(0, 0, lcd->width - 1, lcd->height - 1);
 
 	LCD_SendCommand(ILI9341_GRAM);
 
@@ -446,6 +447,7 @@ static ssize_t sys_lcd_paint(struct class *class,
 	ssize_t i = 0;
 	long indx = 0, dx = 0;
 	u16 *pmem = 0;
+	u16 *pmem2 = 0;
 	u16 color = 0xF800;
 
 	i += sprintf(buf, "sys_lcd_paint\n");
@@ -453,10 +455,12 @@ static ssize_t sys_lcd_paint(struct class *class,
 
 	pmem = lcd_vmem;
 
-	for(indx = 0; indx < lcd->height; indx++){
+	for(indx = 0; indx < lcd->height/4; indx++){
 		color++;
-		for(dx = 0; dx < lcd->width; dx++){
-			*pmem++ = color;
+		pmem += lcd->width;
+		pmem2 = pmem;
+		for(dx = 0; dx < lcd->width/4; dx++){
+			*pmem2++ = color;
 		}
 	}
 
@@ -595,12 +599,11 @@ static int ili9341fb_setcolreg (u_int regno,
 	green >>= 16 - info->var.green.length;
 	blue >>= 16 - info->var.blue.length;
 	transp >>= 16 - info->var.transp.length;
-
+	
 	palette[regno] = (red << info->var.red.offset) 		|
 					(green << info->var.green.offset) 	|
 					(blue << info->var.blue.offset) 	|
 					(transp << info->var.transp.offset);
-
 	return 0;
 }
 
@@ -687,7 +690,6 @@ static int ili9341_probe(struct spi_device *spi)
 {
 	const struct of_device_id *match;
 	struct fb_info *info;
-	//struct lcd_data *lcd;
 	u32 vmem_size;
 	int ret;
 
@@ -715,7 +717,6 @@ static int ili9341_probe(struct spi_device *spi)
 
 	lcd 				= info->par;
 	lcd->spi_device 	= spi;
-	//lcd->info 			= info;
 
 	lcd->width  		= LCD_WIDTH;
 	lcd->height 		= LCD_HEIGHT;
@@ -734,7 +735,7 @@ static int ili9341_probe(struct spi_device *spi)
 
 	info->fbops     		= &ili9341fb_ops;
 	info->fix       		= ili9341fb_fix;
-	info->fix.line_length 	= lcd->width * 2;
+	info->fix.line_length 	= (lcd->width * BPP) / 8;
 
 	info->var 				= ili9341fb_var;
 
@@ -743,16 +744,13 @@ static int ili9341_probe(struct spi_device *spi)
 	info->var.yres 			= lcd->height;
 	info->var.yres_virtual 	= lcd->height;
 
-
-
 	info->screen_base = (u8 __force __iomem *)lcd_vmem;
 
-	//info->fix.smem_start = (unsigned long)virt_to_phys(info->screen_base);
 	info->fix.smem_start = __pa(lcd_vmem);
 	info->fix.smem_len = vmem_size;
 	info->flags = FBINFO_FLAG_DEFAULT;
 
-	info->pseudo_palette = pseudo_palette;//(void *)(info + 1);
+	info->pseudo_palette = pseudo_palette;
 
 	lcd->info 			= info;
 
@@ -770,11 +768,6 @@ static int ili9341_probe(struct spi_device *spi)
 	LCD_Init();
 	INIT_WORK(&lcd->display_update_ws, update_display_work);
 
-	info->var.xres 			= lcd->width;
-	info->var.xres_virtual 	= lcd->width;
-	info->var.yres 			= lcd->height;
-	info->var.yres_virtual 	= lcd->height;
-
 	spi_set_drvdata(spi, lcd);
 
 	make_sysfs_entry(spi);
@@ -785,7 +778,6 @@ static int ili9341_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(dev, "Couldn't register the framebuffer\n");
 		return ret;
-		//goto panel_init_error;
 	}
 
 

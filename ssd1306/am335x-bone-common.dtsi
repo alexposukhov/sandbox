@@ -18,6 +18,15 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
+
+	vbat: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+
 	leds {
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&user_leds_default>;
@@ -60,6 +69,50 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+
+
+
+	my_gpio_keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&test_keys_pins>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce_interval = <50>;
+			linux,code = <105>;
+			label = "left";
+			gpios = <&gpio2 8 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+		button@2 {
+			debounce_interval = <50>;
+			linux,code = <106>;
+			label = "right";
+			gpios = <&gpio2 9 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+		button@3 {
+			debounce_interval = <50>;
+			linux,code = <103>;
+			label = "up";
+			gpios = <&gpio2 6 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+		button@4 {
+			debounce_interval = <50>;
+			linux,code = <108>;
+			label = "down";
+			gpios = <&gpio2 7 0x1>;
+			gpio-key,wakeup;
+			autorepeat;
+		};
+	};	
 };
 
 &am33xx_pinmux {
@@ -153,19 +206,9 @@
 	};
 
 	davinci_mdio_default: davinci_mdio_default {
-		pinctrl-single,pins = <
-			/* MDIO */
-			AM33XX_IOPAD(0x948, PIN_INPUT_PULLUP | SLEWCTRL_FAST | MUX_MODE0)	/* mdio_data.mdio_data */
-			AM33XX_IOPAD(0x94c, PIN_OUTPUT_PULLUP | MUX_MODE0)			/* mdio_clk.mdio_clk */
-		>;
 	};
 
 	davinci_mdio_sleep: davinci_mdio_sleep {
-		pinctrl-single,pins = <
-			/* MDIO reset value */
-			AM33XX_IOPAD(0x948, PIN_INPUT_PULLDOWN | MUX_MODE7)
-			AM33XX_IOPAD(0x94c, PIN_INPUT_PULLDOWN | MUX_MODE7)
-		>;
 	};
 
 	mmc1_pins: pinmux_mmc1_pins {
@@ -188,6 +231,34 @@
 			AM33XX_IOPAD(0x81c, PIN_INPUT_PULLUP | MUX_MODE1) /* gpmc_ad7.mmc1_dat7 */
 		>;
 	};
+
+	bb_spi1_pins: pinmux_bb_spi1_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x990, PIN_OUTPUT_PULLUP | MUX_MODE3) 		/* P9_31 = mcasp0_aclkx.spi1_sclk, OUTPUT_PULLUP | MODE3 */
+			AM33XX_IOPAD(0x994, PIN_INPUT_PULLUP | MUX_MODE3) 		/* P9_29 = mcasp0_fsx.spi1_d0, INPUT_PULLUP | MODE3 */
+			AM33XX_IOPAD(0x998, PIN_OUTPUT_PULLUP | MUX_MODE3) 		/* P9_30 = mcasp0_axr0.spi1_d1, OUTPUT_PULLUP | MODE3 */
+			AM33XX_IOPAD(0x99c, PIN_OUTPUT_PULLUP | MUX_MODE3) 		/* P9_28 = mcasp0_ahclkr.spi1_cs0, OUTPUT_PULLUP | MODE3 */	
+		>;
+	};	
+
+	lcd_ctrl_pinmux: lcd_ctrl_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x9b4, PIN_OUTPUT_PULLUP | MUX_MODE7) 		/* P9.41 gpio0_20 OUTPUT_PULLUP | MODE7 */
+			AM33XX_IOPAD(0x964, PIN_OUTPUT_PULLUP | MUX_MODE7) 		/* P9.42 gpio0_7  OUTPUT_PULLUP | MODE7 */
+			AM33XX_IOPAD(0x9a4, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* P9.27 gpio3_19 OUTPUT_PULDOWN| MODE7 */
+		>;
+	};
+
+
+	test_keys_pins: pinmux_test_keys_pins {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x8a8, PIN_OUTPUT_PULLUP | MUX_MODE7) 		/* P8.43 gpio2_8 OUTPUT_PULLUP | MODE7 */
+			AM33XX_IOPAD(0x8ac, PIN_OUTPUT_PULLUP | MUX_MODE7) 		/* P8.44 gpio2_9  OUTPUT_PULLUP | MODE7 */
+			AM33XX_IOPAD(0x8a0, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* P8.45 gpio2_6 OUTPUT_PULDOWN| MODE7 */
+			AM33XX_IOPAD(0x8a4, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* P8.46 gpio2_7 OUTPUT_PULDOWN| MODE7 */
+		>;
+	};
+
 };
 
 &uart0 {
@@ -248,13 +319,26 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-
+/*
 	lcd_ssd1306: lcd_ssd1306@3c {
 		compatible = "DAndy,lcd_ssd1306";
 		reg = <0x3c>;
 		status = "okay";
 
 	};
+*/
+
+
+	lcd_ssd1306: lcd_ssd1306@3c {
+		compatible = "solomon,ssd1306fb-i2c";
+		reg = <0x3c>;
+		solomon,width = <128>;
+		solomon,height = <64>;
+		solomon,page-offset = <0>;
+		solomon,com-invdir;
+		vbat-supply = <&vbat>;
+	};
+
 };
 
 
@@ -266,6 +350,44 @@
 	clock-frequency = <400000>;
 
 };
+
+
+
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&bb_spi1_pins>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+
+
+	ili9163: ili9163@0 {
+		compatible = "DAndy,lcd_ili9341_drv";
+		reg = <0>;
+
+		label = "DAndy_LCD_ili9341";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_ctrl_pinmux>;
+
+		spi-max-frequency = <24000000>;
+		rotate = <0>;
+		bgr;
+		fps = <5>;
+		buswidth = <8>;
+
+
+		reset-gpios = <&gpio0 20 GPIO_ACTIVE_HIGH>;
+		dc-gpios = <&gpio0 7 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+		
+		debug = <7>;
+	};
+};
+
+
 
 
 /include/ "tps65217.dtsi"
@@ -340,7 +462,6 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
 	phy-mode = "mii";
 };
 
@@ -354,8 +475,6 @@
 
 &davinci_mdio {
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&davinci_mdio_default>;
-	pinctrl-1 = <&davinci_mdio_sleep>;
 	status = "okay";
 };
 
